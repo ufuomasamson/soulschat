@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand */
+  --color-primary: #b4232c;
+  --color-primary-dark: #7f1721;
+  --color-primary-light: #fdf2f3;
+
+  /* Surfaces */
+  --color-background: #ffffff;
+  --color-background-secondary: #f7f7f8;
+  --color-background-chat: #f4f4f5;
+
+  /* Text */
+  --color-text-primary: #171717;
+  --color-text-secondary: #737373;
+  --color-text-muted: #a3a3a3;
+  --color-text-inverse: #ffffff;
+
+  /* Borders & feedback */
+  --color-border: #e5e5e5;
+  --color-success: #22c55e;
+  --color-error: #ef4444;
+
+  /* Spacing scale (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-full: 9999px;
+
+  /* Layout */
+  --nav-height: 64px;
+  --topbar-height: 56px;
+  --app-max-width: 480px;
+  --desktop-max-width: 1120px;
+
+  /* Elevation */
+  --shadow-nav: 0 -1px 0 0 var(--color-border);
+  --shadow-subtle: 0 1px 2px rgba(23, 23, 23, 0.04);
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-dark: var(--color-primary-dark);
+  --color-primary-light: var(--color-primary-light);
+  --color-background: var(--color-background);
+  --color-background-secondary: var(--color-background-secondary);
+  --color-background-chat: var(--color-background-chat);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-border: var(--color-border);
+  --color-success: var(--color-success);
+  --color-error: var(--color-error);
+
+  --font-sans: var(--font-inter);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.animate-toast-in {
+  animation: toast-in 180ms ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 160ms ease-out;
+}
+
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.typing-dot {
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+
+/* Safe area for mobile bottom nav */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
