@@ -1,0 +1,58 @@
+name: Deploy SoulsChat to Contabo VPS
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: soulschat-vps-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Start VPS deployment over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SOULSCHAT_HOST }}
+          username: ${{ secrets.SOULSCHAT_USER }}
+          key: ${{ secrets.SOULSCHAT_SSH_KEY }}
+          port: 22
+          script_stop: true
+          command_timeout: 25m
+          script: |
+            set -eu
+
+            LIVE_DIR="/home/serveradmin/soulschat"
+
+            if [ "$(id -un)" != "serveradmin" ]; then
+              echo "ERROR: expected SSH user serveradmin" >&2
+              exit 1
+            fi
+
+            if [ ! -d "${LIVE_DIR}/.git" ]; then
+              echo "ERROR: ${LIVE_DIR} is not a git checkout" >&2
+              exit 1
+            fi
+
+            cd "${LIVE_DIR}"
+
+            # Pull latest workflow/script first, then run the versioned deployer.
+            # .env.local is untracked and preserved by reset --hard.
+            git remote get-url origin >/dev/null
+            git fetch --prune origin main
+            git checkout main
+            git reset --hard origin/main
+
+            if [ ! -f scripts/deploy-vps.sh ]; then
+              echo "ERROR: scripts/deploy-vps.sh missing after sync" >&2
+              exit 1
+            fi
+
+            chmod +x scripts/deploy-vps.sh
+            ./scripts/deploy-vps.sh
