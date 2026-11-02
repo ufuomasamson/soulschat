@@ -20,6 +20,8 @@ const PROFILE_SELECT = `
   show_last_seen,
   allow_friend_requests,
   is_guest,
+  is_admin,
+  is_disabled,
   facebook_pixel_id
 `;
 
@@ -54,6 +56,8 @@ export async function fetchProfile(
     show_last_seen: data.show_last_seen !== false,
     allow_friend_requests: data.allow_friend_requests !== false,
     is_guest: Boolean(data.is_guest),
+    is_admin: Boolean(data.is_admin),
+    is_disabled: Boolean(data.is_disabled),
     facebook_pixel_id: (data.facebook_pixel_id as string | null) ?? null,
   };
 }

@@ -28,5 +28,7 @@ export interface UserProfile {
   show_last_seen: boolean;
   allow_friend_requests: boolean;
   is_guest: boolean;
+  is_admin: boolean;
+  is_disabled: boolean;
   facebook_pixel_id: string | null;
 }

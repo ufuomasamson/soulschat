@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleHelp,
   FileText,
+  LayoutDashboard,
   Lock,
   Megaphone,
   Shield,
@@ -60,6 +61,22 @@ export default async function SettingsPage() {
   const profile = await fetchProfile(supabase, userId);
   const profileName = profile?.name || "Your profile";
   const avatarUrl = profile?.avatar_url ?? null;
+  const isAdmin = Boolean(profile?.is_admin && !profile?.is_guest);
+
+  const menuSections = isAdmin
+    ? [
+        {
+          items: [
+            {
+              label: "Admin dashboard",
+              icon: LayoutDashboard,
+              href: "/admin",
+            },
+          ],
+        },
+        ...sections,
+      ]
+    : sections;
 
   return (
     <div className="animate-fade-in flex min-h-0 flex-1 flex-col">
@@ -96,7 +113,7 @@ export default async function SettingsPage() {
         </div>
 
         <div className="mt-6 space-y-5">
-          {sections.map((section, sectionIndex) => (
+          {menuSections.map((section, sectionIndex) => (
             <section
               key={sectionIndex}
               className="overflow-hidden rounded-[var(--radius-2xl)] border border-border"

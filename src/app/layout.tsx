@@ -19,8 +19,9 @@ export const metadata: Metadata = {
     "A modern messaging and social discovery app — connect, chat, and meet new people.",
   applicationName: "SoulsChat",
   icons: {
-    icon: [{ url: "/img/logo.png", type: "image/png" }],
-    apple: [{ url: "/img/logo.png" }],
+    icon: [{ url: "/img/souls-icon.png", type: "image/png" }],
+    shortcut: ["/img/souls-icon.png"],
+    apple: [{ url: "/img/souls-icon.png" }],
   },
 };
 
