@@ -47,6 +47,17 @@ export interface PrivateLinkChatResult {
   guest_user_id: string;
 }
 
+export interface LinkGuestSummary {
+  id: string;
+  name: string;
+  email: string | null;
+  avatar_url: string | null;
+  show_on_feed: boolean;
+  conversation_id: string;
+  created_at?: string;
+  is_link_guest?: boolean;
+}
+
 export function privateChatLinkUrl(slug: string, origin?: string) {
   const base =
     origin ||

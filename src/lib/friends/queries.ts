@@ -178,9 +178,11 @@ export async function fetchDiscoverPeople(
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select(
-      "id, name, avatar_url, online_status, last_seen, bio, location, interests",
+      "id, name, avatar_url, online_status, last_seen, bio, location, interests, is_guest, show_on_feed",
     )
     .neq("id", userId)
+    .eq("show_on_feed", true)
+    .eq("is_disabled", false)
     .order("created_at", { ascending: false })
     .limit(50);
 

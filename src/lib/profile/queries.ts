@@ -22,6 +22,7 @@ const PROFILE_SELECT = `
   is_guest,
   is_admin,
   is_disabled,
+  show_on_feed,
   facebook_pixel_id
 `;
 
@@ -58,6 +59,7 @@ export async function fetchProfile(
     is_guest: Boolean(data.is_guest),
     is_admin: Boolean(data.is_admin),
     is_disabled: Boolean(data.is_disabled),
+    show_on_feed: data.show_on_feed !== false,
     facebook_pixel_id: (data.facebook_pixel_id as string | null) ?? null,
   };
 }

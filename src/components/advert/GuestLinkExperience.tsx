@@ -10,10 +10,12 @@ import { getAgeFromDob, RELATIONSHIP_OPTIONS } from "@/lib/auth/constants";
 import {
   ensureGuestSession,
   fetchPrivateLinkLanding,
+  readStoredGuestEmail,
   readStoredGuestName,
   startPrivateLinkChat,
 } from "@/lib/advert/actions";
 import type { PrivateLinkLanding } from "@/lib/advert/types";
+import { looksLikeEmail } from "@/lib/auth/constants";
 import { formatLastSeen } from "@/lib/chat/time";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -28,13 +30,14 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
   const [joining, setJoining] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [tab, setTab] = useState<Tab>("profile");
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [needsName, setNeedsName] = useState(true);
+  const [needsDetails, setNeedsDetails] = useState(true);
 
   useEffect(() => {
     const supabase = createClient();
@@ -59,14 +62,16 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
 
         if (user?.id === data.owner.id) {
           setIsOwner(true);
-          setNeedsName(false);
+          setNeedsDetails(false);
           setCurrentUserId(user.id);
           setLoading(false);
           return;
         }
 
         const storedName = readStoredGuestName(slug);
+        const storedEmail = readStoredGuestEmail(slug);
         if (storedName) setGuestName(storedName);
+        if (storedEmail) setGuestEmail(storedEmail);
 
         if (user) {
           setCurrentUserId(user.id);
@@ -74,41 +79,49 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
             user.user_metadata?.is_guest === true ||
             (user.email || "").endsWith("@guests.soulschat.local");
 
-          if (isGuest || storedName) {
-            try {
-              const chat = await startPrivateLinkChat(
-                supabase,
-                slug,
-                storedName || user.user_metadata?.name || "Guest",
-              );
-              if (!cancelled) {
-                setConversationId(chat.conversation_id);
-                setNeedsName(false);
-                setTab("chat");
+          if (isGuest) {
+            if (storedName && storedEmail) {
+              try {
+                const chat = await startPrivateLinkChat(
+                  supabase,
+                  slug,
+                  storedName,
+                  storedEmail,
+                );
+                if (!cancelled) {
+                  setConversationId(chat.conversation_id);
+                  setNeedsDetails(false);
+                  setTab("chat");
+                }
+              } catch {
+                setNeedsDetails(true);
               }
-            } catch {
-              setNeedsName(true);
+            } else {
+              setNeedsDetails(true);
             }
           } else {
-            // Logged-in SoulsChat member: start chat with their account name
+            // Logged-in SoulsChat member: start chat with their account
             try {
               const chat = await startPrivateLinkChat(
                 supabase,
                 slug,
                 user.user_metadata?.name || "Member",
+                user.email,
               );
               if (!cancelled) {
                 setConversationId(chat.conversation_id);
-                setNeedsName(false);
+                setNeedsDetails(false);
                 setCurrentUserId(user.id);
                 setTab("chat");
               }
             } catch {
-              setNeedsName(true);
+              setNeedsDetails(true);
             }
           }
+        } else if (storedName && storedEmail) {
+          setNeedsDetails(true);
         } else {
-          setNeedsName(true);
+          setNeedsDetails(true);
         }
       } catch (err) {
         if (!cancelled) {
@@ -147,14 +160,32 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
   async function handleJoin(e: FormEvent) {
     e.preventDefault();
     if (!landing) return;
+    if (guestName.trim().length < 2) {
+      toast({ title: "Enter your name", tone: "error" });
+      return;
+    }
+    if (!looksLikeEmail(guestEmail)) {
+      toast({ title: "Enter a valid email", tone: "error" });
+      return;
+    }
     setJoining(true);
     const supabase = createClient();
     try {
-      const session = await ensureGuestSession(supabase, slug, guestName);
-      const chat = await startPrivateLinkChat(supabase, slug, guestName.trim());
+      const session = await ensureGuestSession(
+        supabase,
+        slug,
+        guestName,
+        guestEmail,
+      );
+      const chat = await startPrivateLinkChat(
+        supabase,
+        slug,
+        guestName.trim(),
+        guestEmail.trim(),
+      );
       setCurrentUserId(session.userId);
       setConversationId(chat.conversation_id);
-      setNeedsName(false);
+      setNeedsDetails(false);
       setTab("chat");
       trackFacebookEvent("Lead", { content_name: "private_chat_guest" });
     } catch (err) {
@@ -216,12 +247,12 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
 
       {isOwner ? (
         <div className="border-b border-border bg-primary-light px-4 py-3 text-[13px] text-text-primary">
-          This is your advert link preview. Guests will enter their name here,
-          then chat with you.
+          This is your advert link preview. Guests will enter their name and
+          email here, then chat with you.
         </div>
       ) : null}
 
-      {!isOwner && !needsName ? (
+      {!isOwner && !needsDetails ? (
         <div className="grid grid-cols-2 border-b border-border">
           <TabButton
             active={tab === "profile"}
@@ -238,7 +269,7 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
         </div>
       ) : null}
 
-      {needsName && !isOwner ? (
+      {needsDetails && !isOwner ? (
         <div className="flex flex-1 flex-col overflow-y-auto">
           <OwnerProfile
             owner={owner}
@@ -252,12 +283,22 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
               <Input
                 label="Your name"
                 name="guest_name"
-                placeholder="Enter your name to chat"
+                placeholder="Enter your name"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 required
                 minLength={2}
                 autoComplete="name"
+              />
+              <Input
+                label="Your email"
+                name="guest_email"
+                type="email"
+                placeholder="you@email.com"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                required
+                autoComplete="email"
               />
               <Button type="submit" fullWidth loading={joining}>
                 Start chatting

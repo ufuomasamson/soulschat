@@ -15,8 +15,6 @@ import { Camera, Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
-import { BrandMark } from "./AuthShell";
-
 const STEPS = [
   "Account",
   "About you",
@@ -58,7 +56,6 @@ export function SignupForm() {
   const [data, setData] = useState<SignupData>(initialData);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
 
   const previewUrl = useMemo(() => {
     if (!data.avatarFile) return null;
@@ -166,48 +163,67 @@ export function SignupForm() {
       return;
     }
 
-    const user = signUpData.user;
-    const session = signUpData.session;
+    let user = signUpData.user;
+    let session = signUpData.session;
 
-    if (user && session) {
-      let avatarUrl: string | null = null;
-
-      if (data.avatarFile) {
-        const ext = data.avatarFile.name.split(".").pop() || "jpg";
-        const path = `${user.id}/avatar.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from("avatars")
-          .upload(path, data.avatarFile, { upsert: true });
-
-        if (!uploadError) {
-          const { data: publicData } = supabase.storage
-            .from("avatars")
-            .getPublicUrl(path);
-          avatarUrl = publicData.publicUrl;
-        }
+    // If confirmation is still enabled in Auth settings, sign in immediately.
+    if (user && !session) {
+      const signedIn = await supabase.auth.signInWithPassword({
+        email: data.email.trim(),
+        password: data.password,
+      });
+      if (signedIn.error || !signedIn.data.user) {
+        setLoading(false);
+        setError(
+          signedIn.error?.message ||
+            "Account created, but we couldn't sign you in. Try logging in.",
+        );
+        return;
       }
+      user = signedIn.data.user;
+      session = signedIn.data.session;
+    }
 
-      await supabase
-        .from("profiles")
-        .update({
-          name: data.name.trim(),
-          date_of_birth: data.dateOfBirth,
-          gender: data.gender,
-          bio: data.bio.trim(),
-          location: data.location.trim(),
-          interests: data.interests,
-          ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-        })
-        .eq("id", user.id);
-
+    if (!user || !session) {
       setLoading(false);
-      router.replace("/chats");
-      router.refresh();
+      setError("Couldn't create your account. Please try again.");
       return;
     }
 
+    let avatarUrl: string | null = null;
+
+    if (data.avatarFile) {
+      const ext = data.avatarFile.name.split(".").pop() || "jpg";
+      const path = `${user.id}/avatar.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, data.avatarFile, { upsert: true });
+
+      if (!uploadError) {
+        const { data: publicData } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(path);
+        avatarUrl = publicData.publicUrl;
+      }
+    }
+
+    await supabase
+      .from("profiles")
+      .update({
+        name: data.name.trim(),
+        date_of_birth: data.dateOfBirth,
+        gender: data.gender,
+        bio: data.bio.trim(),
+        location: data.location.trim(),
+        interests: data.interests,
+        show_on_feed: true,
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+      })
+      .eq("id", user.id);
+
     setLoading(false);
-    setNeedsEmailConfirm(true);
+    router.replace("/chats");
+    router.refresh();
   }
 
   async function onSubmit(e: FormEvent) {
@@ -217,30 +233,6 @@ export function SignupForm() {
       return;
     }
     await finishSignup();
-  }
-
-  if (needsEmailConfirm) {
-    return (
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col">
-        <BrandMark className="mt-2" />
-        <div className="mt-10 text-center">
-          <h1 className="text-[24px] font-semibold tracking-tight text-text-primary">
-            Confirm your email
-          </h1>
-          <p className="mt-2 text-[14px] leading-relaxed text-text-secondary">
-            We sent a confirmation link to{" "}
-            <span className="font-medium text-text-primary">{data.email}</span>.
-            Open it to finish creating your account.
-          </p>
-        </div>
-        <Link
-          href="/login"
-          className="mt-8 inline-flex h-12 items-center justify-center rounded-[var(--radius-xl)] bg-primary text-[16px] font-medium text-text-inverse"
-        >
-          Back to log in
-        </Link>
-      </div>
-    );
   }
 
   return (

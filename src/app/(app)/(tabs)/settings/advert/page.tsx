@@ -1,5 +1,6 @@
 import { AdvertSettingsForm } from "@/components/advert/AdvertSettingsForm";
 import { SettingsBackHeader } from "@/components/settings/SettingsBackHeader";
+import { listMyLinkGuests } from "@/lib/advert/actions";
 import { fetchActivePrivateChatLink } from "@/lib/advert/queries";
 import { fetchProfile } from "@/lib/profile/queries";
 import { createClient } from "@/lib/supabase/server";
@@ -18,9 +19,10 @@ export default async function AdvertSettingsPage() {
   const userId = data?.claims?.sub;
   if (!userId) redirect("/login");
 
-  const [profile, link] = await Promise.all([
+  const [profile, link, guests] = await Promise.all([
     fetchProfile(supabase, userId),
     fetchActivePrivateChatLink(supabase, userId),
+    listMyLinkGuests(supabase).catch(() => []),
   ]);
 
   if (!profile) redirect("/settings");
@@ -33,6 +35,7 @@ export default async function AdvertSettingsPage() {
         <AdvertSettingsForm
           initialPixelId={profile.facebook_pixel_id}
           initialLink={link}
+          initialGuests={guests}
         />
       </div>
     </div>

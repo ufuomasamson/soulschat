@@ -2,6 +2,11 @@
 
 import { Avatar, TopBar, useToast } from "@/components/ui";
 import {
+  getOwnedLinkGuest,
+  setLinkGuestFeedVisibility,
+} from "@/lib/advert/actions";
+import type { LinkGuestSummary } from "@/lib/advert/types";
+import {
   forwardMessage,
   markConversationRead,
   markIncomingDelivered,
@@ -21,7 +26,8 @@ import type {
   ProfileSummary,
 } from "@/lib/chat/types";
 import { createClient } from "@/lib/supabase/client";
-import { ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatComposer, type ComposerSendPayload } from "./ChatComposer";
@@ -33,6 +39,8 @@ export function ConversationView({ conversationId }: { conversationId: string })
   const { toast } = useToast();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<ProfileSummary | null>(null);
+  const [linkGuest, setLinkGuest] = useState<LinkGuestSummary | null>(null);
+  const [feedBusy, setFeedBusy] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +94,16 @@ export function ConversationView({ conversationId }: { conversationId: string })
         setOtherUser(meta.other_user);
         setMessages(initialMessages);
         setLoading(false);
+
+        try {
+          const ownedGuest = await getOwnedLinkGuest(
+            supabase,
+            meta.other_user.id,
+          );
+          if (!cancelled) setLinkGuest(ownedGuest);
+        } catch {
+          if (!cancelled) setLinkGuest(null);
+        }
 
         await markConversationRead(supabase, conversationId);
 
@@ -360,6 +378,40 @@ export function ConversationView({ conversationId }: { conversationId: string })
     }
   }
 
+  async function handleToggleFeedVisibility() {
+    if (!linkGuest || feedBusy) return;
+    setFeedBusy(true);
+    const supabase = createClient();
+    const next = !linkGuest.show_on_feed;
+    try {
+      const result = await setLinkGuestFeedVisibility(
+        supabase,
+        linkGuest.id,
+        next,
+      );
+      setLinkGuest((prev) =>
+        prev ? { ...prev, show_on_feed: result.show_on_feed } : prev,
+      );
+      toast({
+        title: result.show_on_feed
+          ? "Visible on Feed"
+          : "Hidden from Feed",
+        description: result.show_on_feed
+          ? `${linkGuest.name} can now appear on Discover.`
+          : `${linkGuest.name} is hidden from Discover.`,
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Couldn't update Feed visibility",
+        description: err instanceof Error ? err.message : "Try again.",
+        tone: "error",
+      });
+    } finally {
+      setFeedBusy(false);
+    }
+  }
+
   async function handleForwardSelect(target: ConversationPreview) {
     if (!currentUserId || !forwarding) return;
     setForwardBusy(true);
@@ -440,6 +492,41 @@ export function ConversationView({ conversationId }: { conversationId: string })
           </Link>
         }
       />
+
+      {linkGuest ? (
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-background px-4 py-2.5">
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-medium text-text-primary">
+              Private link guest
+            </p>
+            <p className="truncate text-[12px] text-text-secondary">
+              {linkGuest.show_on_feed
+                ? "Visible on Feed"
+                : "Hidden from Feed by default"}
+              {linkGuest.email ? ` · ${linkGuest.email}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={feedBusy}
+            onClick={() => void handleToggleFeedVisibility()}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium transition-colors",
+              linkGuest.show_on_feed
+                ? "bg-primary text-text-inverse"
+                : "bg-background-secondary text-text-primary hover:bg-background-secondary/80",
+              feedBusy && "opacity-60",
+            )}
+          >
+            {linkGuest.show_on_feed ? (
+              <Eye className="size-3.5" strokeWidth={1.75} />
+            ) : (
+              <EyeOff className="size-3.5" strokeWidth={1.75} />
+            )}
+            {linkGuest.show_on_feed ? "On Feed" : "Show on Feed"}
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4">
         <div className="mt-auto flex flex-col gap-2">

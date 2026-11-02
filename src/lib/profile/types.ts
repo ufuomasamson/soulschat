@@ -30,5 +30,6 @@ export interface UserProfile {
   is_guest: boolean;
   is_admin: boolean;
   is_disabled: boolean;
+  show_on_feed: boolean;
   facebook_pixel_id: string | null;
 }
