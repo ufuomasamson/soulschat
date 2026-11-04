@@ -60,6 +60,13 @@ export function AdvertSettingsForm({
   );
   const isConnected = Boolean(connectedPixelId);
 
+  async function ensureLink(supabase: ReturnType<typeof createClient>) {
+    if (link) return link;
+    const created = await createOrGetPrivateChatLink(supabase);
+    setLink(created);
+    return created;
+  }
+
   async function handleConnectPixel(e: FormEvent) {
     e.preventDefault();
     setSavingPixel(true);
@@ -78,28 +85,55 @@ export function AdvertSettingsForm({
         throw new Error("Couldn't connect pixel.");
       }
 
-      const verified = await connectAndVerifyFacebookPixel(saved);
+      await connectAndVerifyFacebookPixel(saved);
       setConnectedPixelId(saved);
       setPixelInput(saved);
 
-      if (!verified.ok) {
-        toast({
-          title: "Pixel saved",
-          description:
-            "Connected in SoulsChat, but Facebook verification needs a refresh. Open your private chat link, then check Events Manager.",
-          tone: "success",
-        });
-      } else {
-        toast({
-          title: "Facebook Pixel connected",
-          description:
-            "PageView was sent so Meta can verify this pixel. Use your private chat link as the ads destination URL.",
-          tone: "success",
-        });
-      }
+      // Meta verifies against the public destination URL, not Settings.
+      const readyLink = await ensureLink(supabase);
+      const dest = privateChatLinkUrl(readyLink.slug);
+      window.open(dest, "_blank", "noopener");
+
+      toast({
+        title: "Pixel connected — finish in Ads Manager",
+        description:
+          "We opened your private chat link (Pixel is in the page HTML). In Events Manager → Test events, disable ad blockers, then refresh until PageView appears.",
+        tone: "success",
+      });
     } catch (err) {
       toast({
         title: "Couldn't connect pixel",
+        description: err instanceof Error ? err.message : "Try again.",
+        tone: "error",
+      });
+    } finally {
+      setSavingPixel(false);
+    }
+  }
+
+  async function handleVerifyWithMeta() {
+    if (!connectedPixelId) return;
+    setSavingPixel(true);
+    const supabase = createClient();
+    try {
+      await connectAndVerifyFacebookPixel(connectedPixelId);
+      const readyLink = await ensureLink(supabase);
+      const dest = privateChatLinkUrl(readyLink.slug);
+      window.open(dest, "_blank", "noopener");
+      window.open(
+        "https://business.facebook.com/events_manager2.php",
+        "_blank",
+        "noopener",
+      );
+      toast({
+        title: "Opened private link + Events Manager",
+        description:
+          "In Test events, select this Pixel, turn off ad blockers, reload the private link, and wait for PageView (can take 1–2 minutes).",
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Couldn't start verification",
         description: err instanceof Error ? err.message : "Try again.",
         tone: "error",
       });
@@ -266,18 +300,40 @@ export function AdvertSettingsForm({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[14px] font-semibold text-text-primary">
-                  Pixel connected
+                  Pixel saved on SoulsChat
                 </p>
                 <p className="mt-0.5 break-all font-mono text-[13px] text-text-secondary">
                   {connectedPixelId}
                 </p>
                 <p className="mt-2 text-[12px] leading-relaxed text-text-muted">
-                  Check Meta Events Manager → Test events / Overview after
-                  opening your private chat link. You should see PageView, Lead,
-                  and Contact from guest activity.
+                  Green here only means SoulsChat stored your Pixel. Meta Ads
+                  Manager verifies it when PageView fires on your{" "}
+                  <span className="font-medium text-text-primary">
+                    public private-chat link
+                  </span>{" "}
+                  (with ad blockers off).
                 </p>
               </div>
             </div>
+
+            <ol className="list-decimal space-y-1.5 rounded-[var(--radius-xl)] bg-background-secondary px-4 py-3 text-[12px] leading-relaxed text-text-secondary">
+              <li>Open Events Manager → your Pixel → Test events</li>
+              <li>Disable ad blockers / Brave shields for this site</li>
+              <li>
+                Open your private chat link (use Verify with Meta below)
+              </li>
+              <li>Wait up to 1–2 minutes for PageView to appear</li>
+            </ol>
+
+            <Button
+              type="button"
+              fullWidth
+              loading={savingPixel}
+              onClick={() => void handleVerifyWithMeta()}
+            >
+              <ExternalLink className="size-4" strokeWidth={1.75} />
+              Verify with Meta
+            </Button>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
@@ -291,8 +347,7 @@ export function AdvertSettingsForm({
                     });
                 }}
               >
-                <ExternalLink className="size-4" strokeWidth={1.75} />
-                Test link
+                Open private link
               </Button>
               <Button
                 type="button"

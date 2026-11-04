@@ -10,67 +10,28 @@ declare global {
   }
 }
 
+/**
+ * Client-side event helper. Prefer MetaPixelSnippet on public landing pages so
+ * Ads Manager can see the base code in HTML. Set skipPageView when the SSR
+ * snippet already fired PageView.
+ */
 export function FacebookPixel({
   pixelId,
-  event,
+  event = "PageView",
+  skipPageView = false,
 }: {
   pixelId?: string | null;
   event?: "PageView" | "Lead" | "Contact" | "ViewContent";
+  skipPageView?: boolean;
 }) {
   useEffect(() => {
     if (!isValidFacebookPixelId(pixelId)) return;
-    const id = pixelId as string;
+    if (skipPageView && event === "PageView") return;
+    if (!window.fbq) return;
+    window.fbq("track", event);
+  }, [pixelId, event, skipPageView]);
 
-    if (!window.fbq) {
-      const n = function (...args: unknown[]) {
-        // eslint-disable-next-line prefer-rest-params, @typescript-eslint/no-explicit-any
-        const fn = n as any;
-        fn.callMethod ? fn.callMethod(...args) : fn.queue.push(args);
-      } as ((...args: unknown[]) => void) & {
-        callMethod?: (...args: unknown[]) => void;
-        queue: unknown[];
-        loaded: boolean;
-        version: string;
-        push: (...args: unknown[]) => void;
-      };
-
-      n.queue = [];
-      n.loaded = true;
-      n.version = "2.0";
-      n.push = n;
-      window.fbq = n;
-      window._fbq = n;
-
-      const existing = document.querySelector(
-        'script[src="https://connect.facebook.net/en_US/fbevents.js"]',
-      );
-      if (!existing) {
-        const script = document.createElement("script");
-        script.async = true;
-        script.src = "https://connect.facebook.net/en_US/fbevents.js";
-        document.head.appendChild(script);
-      }
-
-      window.fbq("init", id);
-    }
-
-    window.fbq?.("track", event ?? "PageView");
-  }, [pixelId, event]);
-
-  if (!isValidFacebookPixelId(pixelId)) return null;
-
-  return (
-    <noscript>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        height="1"
-        width="1"
-        style={{ display: "none" }}
-        src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
-        alt=""
-      />
-    </noscript>
-  );
+  return null;
 }
 
 export function trackFacebookEvent(

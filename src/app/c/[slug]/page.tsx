@@ -1,4 +1,5 @@
 import { GuestLinkExperience } from "@/components/advert/GuestLinkExperience";
+import { MetaPixelSnippet } from "@/components/advert/MetaPixelSnippet";
 import { fetchPrivateLinkPreview } from "@/lib/advert/queries";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
@@ -61,7 +62,6 @@ export async function generateMetadata({
   return {
     title,
     description,
-    // Allow Meta / Facebook crawlers to use this URL as an ads destination.
     robots: {
       index: true,
       follow: true,
@@ -104,5 +104,22 @@ export async function generateMetadata({
 
 export default async function PrivateChatLinkPage({ params }: PageProps) {
   const { slug } = await params;
-  return <GuestLinkExperience slug={slug} />;
+  const supabase = await createClient();
+
+  let preview = null;
+  try {
+    preview = await fetchPrivateLinkPreview(supabase, slug);
+  } catch {
+    preview = null;
+  }
+
+  return (
+    <>
+      <MetaPixelSnippet pixelId={preview?.facebook_pixel_id} />
+      <GuestLinkExperience
+        slug={slug}
+        pixelInstalledInHead={Boolean(preview?.facebook_pixel_id)}
+      />
+    </>
+  );
 }

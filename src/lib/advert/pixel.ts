@@ -22,15 +22,25 @@ export function isValidFacebookPixelId(value: string | null | undefined) {
   return Boolean(value && /^\d{5,20}$/.test(value));
 }
 
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+    _fbq?: (...args: unknown[]) => void;
+  }
+}
+
 /**
- * Load Meta Pixel, init the given ID, and fire PageView so Events Manager
- * can verify the connection.
+ * Install the official Meta Pixel stub (queue before fbevents.js), init, and
+ * fire PageView — same pattern Meta documents for manual installs.
  */
 export async function connectAndVerifyFacebookPixel(
   pixelId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!isValidFacebookPixelId(pixelId)) {
-    return { ok: false, error: "Enter a valid Meta Pixel ID or paste the full Pixel Code." };
+    return {
+      ok: false,
+      error: "Enter a valid Meta Pixel ID or paste the full Pixel Code.",
+    };
   }
 
   if (typeof window === "undefined") {
@@ -38,76 +48,57 @@ export async function connectAndVerifyFacebookPixel(
   }
 
   try {
-    await ensureFacebookPixelScript();
-    window.fbq?.("init", pixelId);
-    window.fbq?.("track", "PageView");
-    // Helps Events Manager show a fresh event after Connect.
-    window.fbq?.("trackCustom", "SoulsChatPixelConnected", {
-      source: "advert_settings",
-    });
+    installOfficialPixelBootstrap(pixelId);
+    // Give fbevents.js a moment to flush the queue to Meta.
+    await wait(1200);
     return { ok: true };
   } catch (err) {
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Couldn't reach Facebook Pixel.",
+      error:
+        err instanceof Error ? err.message : "Couldn't reach Facebook Pixel.",
     };
   }
 }
 
-function ensureFacebookPixelScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      reject(new Error("No window"));
-      return;
-    }
-
-    if (!window.fbq) {
-      const n = function (...args: unknown[]) {
-        // eslint-disable-next-line prefer-rest-params, @typescript-eslint/no-explicit-any
-        const fn = n as any;
-        fn.callMethod ? fn.callMethod(...args) : fn.queue.push(args);
-      } as ((...args: unknown[]) => void) & {
-        callMethod?: (...args: unknown[]) => void;
-        queue: unknown[];
-        loaded: boolean;
-        version: string;
-        push: (...args: unknown[]) => void;
-      };
-
-      n.queue = [];
-      n.loaded = true;
-      n.version = "2.0";
-      n.push = n;
-      window.fbq = n;
-      window._fbq = n;
-    }
-
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[src="https://connect.facebook.net/en_US/fbevents.js"]',
-    );
-    if (existing) {
-      if (existing.dataset.loaded === "1") {
-        resolve();
-        return;
-      }
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener(
-        "error",
-        () => reject(new Error("Failed to load Facebook Pixel script")),
-        { once: true },
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.async = true;
-    script.src = "https://connect.facebook.net/en_US/fbevents.js";
-    script.onload = () => {
-      script.dataset.loaded = "1";
-      resolve();
+function installOfficialPixelBootstrap(pixelId: string) {
+  const f = window;
+  // Mirror Meta's snippet so init/track are queued even before the script loads.
+  if (!f.fbq) {
+    const n = function (...args: unknown[]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fn = n as any;
+      fn.callMethod ? fn.callMethod(...args) : fn.queue.push(args);
+    } as ((...args: unknown[]) => void) & {
+      callMethod?: (...args: unknown[]) => void;
+      queue: unknown[];
+      loaded: boolean;
+      version: string;
+      push: (...args: unknown[]) => void;
     };
-    script.onerror = () =>
-      reject(new Error("Failed to load Facebook Pixel script"));
-    document.head.appendChild(script);
-  });
+    n.queue = [];
+    n.loaded = true;
+    n.version = "2.0";
+    n.push = n;
+    f.fbq = n;
+    f._fbq = n;
+  }
+
+  const existing = document.querySelector(
+    'script[src="https://connect.facebook.net/en_US/fbevents.js"]',
+  );
+  if (!existing) {
+    const t = document.createElement("script");
+    t.async = true;
+    t.src = "https://connect.facebook.net/en_US/fbevents.js";
+    const s = document.getElementsByTagName("script")[0];
+    s?.parentNode?.insertBefore(t, s);
+  }
+
+  f.fbq?.("init", pixelId);
+  f.fbq?.("track", "PageView");
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

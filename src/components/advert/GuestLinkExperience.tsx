@@ -24,7 +24,14 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Tab = "profile" | "chat";
 
-export function GuestLinkExperience({ slug }: { slug: string }) {
+export function GuestLinkExperience({
+  slug,
+  pixelInstalledInHead = false,
+}: {
+  slug: string;
+  /** True when MetaPixelSnippet already put base code + PageView in HTML. */
+  pixelInstalledInHead?: boolean;
+}) {
   const { toast } = useToast();
   const [landing, setLanding] = useState<PrivateLinkLanding | null>(null);
   const [loading, setLoading] = useState(true);
@@ -222,7 +229,11 @@ export function GuestLinkExperience({ slug }: { slug: string }) {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[var(--app-max-width)] flex-col bg-background">
-      <FacebookPixel pixelId={owner.facebook_pixel_id} event="PageView" />
+      <FacebookPixel
+        pixelId={owner.facebook_pixel_id}
+        event="PageView"
+        skipPageView={pixelInstalledInHead}
+      />
 
       <div className="flex justify-center border-b border-border bg-black px-4 py-2.5">
         <Logo size="sm" className="h-9" />
