@@ -1,5 +1,6 @@
 "use client";
 
+import { isValidFacebookPixelId } from "@/lib/advert/pixel";
 import { useEffect } from "react";
 
 declare global {
@@ -17,15 +18,14 @@ export function FacebookPixel({
   event?: "PageView" | "Lead" | "Contact" | "ViewContent";
 }) {
   useEffect(() => {
-    if (!pixelId || !/^\d{5,20}$/.test(pixelId)) return;
+    if (!isValidFacebookPixelId(pixelId)) return;
+    const id = pixelId as string;
 
     if (!window.fbq) {
       const n = function (...args: unknown[]) {
         // eslint-disable-next-line prefer-rest-params, @typescript-eslint/no-explicit-any
         const fn = n as any;
-        fn.callMethod
-          ? fn.callMethod(...args)
-          : fn.queue.push(args);
+        fn.callMethod ? fn.callMethod(...args) : fn.queue.push(args);
       } as ((...args: unknown[]) => void) & {
         callMethod?: (...args: unknown[]) => void;
         queue: unknown[];
@@ -41,18 +41,23 @@ export function FacebookPixel({
       window.fbq = n;
       window._fbq = n;
 
-      const script = document.createElement("script");
-      script.async = true;
-      script.src = "https://connect.facebook.net/en_US/fbevents.js";
-      document.head.appendChild(script);
+      const existing = document.querySelector(
+        'script[src="https://connect.facebook.net/en_US/fbevents.js"]',
+      );
+      if (!existing) {
+        const script = document.createElement("script");
+        script.async = true;
+        script.src = "https://connect.facebook.net/en_US/fbevents.js";
+        document.head.appendChild(script);
+      }
 
-      window.fbq("init", pixelId);
+      window.fbq("init", id);
     }
 
     window.fbq?.("track", event ?? "PageView");
   }, [pixelId, event]);
 
-  if (!pixelId || !/^\d{5,20}$/.test(pixelId)) return null;
+  if (!isValidFacebookPixelId(pixelId)) return null;
 
   return (
     <noscript>

@@ -58,9 +58,28 @@ export interface LinkGuestSummary {
   is_link_guest?: boolean;
 }
 
+export interface PrivateLinkPreview {
+  slug: string;
+  name: string;
+  bio: string;
+  location: string;
+  avatar_url: string | null;
+  cover_url: string | null;
+  facebook_pixel_id: string | null;
+}
+
 export function privateChatLinkUrl(slug: string, origin?: string) {
   const base =
     origin ||
     (typeof window !== "undefined" ? window.location.origin : "");
   return `${base}/c/${slug}`;
+}
+
+export function absoluteAppUrl(path = "/") {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+  if (!base) return path;
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }
