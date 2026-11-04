@@ -116,10 +116,7 @@ export default async function PrivateChatLinkPage({ params }: PageProps) {
   return (
     <>
       <MetaPixelSnippet pixelId={preview?.facebook_pixel_id} />
-      <GuestLinkExperience
-        slug={slug}
-        pixelInstalledInHead={Boolean(preview?.facebook_pixel_id)}
-      />
+      <GuestLinkExperience slug={slug} />
     </>
   );
 }

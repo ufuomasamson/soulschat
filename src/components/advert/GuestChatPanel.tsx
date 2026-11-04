@@ -21,10 +21,12 @@ export function GuestChatPanel({
   conversationId,
   currentUserId,
   otherUser,
+  pixelId,
 }: {
   conversationId: string;
   currentUserId: string;
   otherUser: ProfileSummary;
+  pixelId?: string | null;
 }) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -242,7 +244,7 @@ export function GuestChatPanel({
         ),
       );
       setReplyTo(null);
-      trackFacebookEvent("Contact");
+      void trackFacebookEvent("Contact", { content_name: "private_chat" }, pixelId);
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       toast({

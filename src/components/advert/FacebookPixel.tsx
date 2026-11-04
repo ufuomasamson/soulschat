@@ -1,47 +1,19 @@
 "use client";
 
-import { isValidFacebookPixelId } from "@/lib/advert/pixel";
-import { useEffect } from "react";
-
-declare global {
-  interface Window {
-    fbq?: (...args: unknown[]) => void;
-    _fbq?: (...args: unknown[]) => void;
-  }
-}
+import { trackMetaEvent } from "@/lib/advert/pixel";
 
 /**
- * Client-side event helper. Prefer MetaPixelSnippet on public landing pages so
- * Ads Manager can see the base code in HTML. Set skipPageView when the SSR
- * snippet already fired PageView.
+ * Fire Meta standard events. Always pass the owner's pixelId so we can install
+ * the pixel if the page snippet did not execute.
  */
-export function FacebookPixel({
-  pixelId,
-  event = "PageView",
-  skipPageView = false,
-}: {
-  pixelId?: string | null;
-  event?: "PageView" | "Lead" | "Contact" | "ViewContent";
-  skipPageView?: boolean;
-}) {
-  useEffect(() => {
-    if (!isValidFacebookPixelId(pixelId)) return;
-    if (skipPageView && event === "PageView") return;
-    if (!window.fbq) return;
-    window.fbq("track", event);
-  }, [pixelId, event, skipPageView]);
-
-  return null;
-}
-
-export function trackFacebookEvent(
+export async function trackFacebookEvent(
   event: "Lead" | "Contact" | "ViewContent" | "PageView",
   params?: Record<string, unknown>,
+  pixelId?: string | null,
+  advancedMatching?: Record<string, string>,
 ) {
-  if (typeof window === "undefined" || !window.fbq) return;
-  if (params) {
-    window.fbq("track", event, params);
-  } else {
-    window.fbq("track", event);
-  }
+  const id =
+    pixelId ||
+    (typeof window !== "undefined" ? window.__soulschatPixel?.id : null);
+  return trackMetaEvent(id, event, params, advancedMatching);
 }

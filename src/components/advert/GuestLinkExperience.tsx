@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  FacebookPixel,
-  trackFacebookEvent,
-} from "@/components/advert/FacebookPixel";
+import { trackFacebookEvent } from "@/components/advert/FacebookPixel";
 import { GuestChatPanel } from "@/components/advert/GuestChatPanel";
 import { Avatar, Button, Input, Logo, useToast } from "@/components/ui";
 import { getAgeFromDob, RELATIONSHIP_OPTIONS } from "@/lib/auth/constants";
@@ -24,14 +21,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Tab = "profile" | "chat";
 
-export function GuestLinkExperience({
-  slug,
-  pixelInstalledInHead = false,
-}: {
-  slug: string;
-  /** True when MetaPixelSnippet already put base code + PageView in HTML. */
-  pixelInstalledInHead?: boolean;
-}) {
+export function GuestLinkExperience({ slug }: { slug: string }) {
   const { toast } = useToast();
   const [landing, setLanding] = useState<PrivateLinkLanding | null>(null);
   const [loading, setLoading] = useState(true);
@@ -194,7 +184,15 @@ export function GuestLinkExperience({
       setConversationId(chat.conversation_id);
       setNeedsDetails(false);
       setTab("chat");
-      trackFacebookEvent("Lead", { content_name: "private_chat_guest" });
+      void trackFacebookEvent(
+        "Lead",
+        { content_name: "private_chat_guest" },
+        landing.owner.facebook_pixel_id,
+        {
+          em: guestEmail.trim().toLowerCase(),
+          fn: guestName.trim().toLowerCase(),
+        },
+      );
     } catch (err) {
       toast({
         title: "Couldn't start chat",
@@ -229,12 +227,6 @@ export function GuestLinkExperience({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[var(--app-max-width)] flex-col bg-background">
-      <FacebookPixel
-        pixelId={owner.facebook_pixel_id}
-        event="PageView"
-        skipPageView={pixelInstalledInHead}
-      />
-
       <div className="flex justify-center border-b border-border bg-black px-4 py-2.5">
         <Logo size="sm" className="h-9" />
       </div>
@@ -287,6 +279,7 @@ export function GuestLinkExperience({
             media={landing.media}
             age={age}
             intentionLabel={intentionLabel}
+            pixelId={owner.facebook_pixel_id}
             onOpenPhoto={setLightboxUrl}
           />
           <div className="sticky bottom-0 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -324,6 +317,7 @@ export function GuestLinkExperience({
         <GuestChatPanel
           conversationId={conversationId}
           currentUserId={currentUserId}
+          pixelId={owner.facebook_pixel_id}
           otherUser={{
             id: owner.id,
             name: owner.name,
@@ -339,6 +333,7 @@ export function GuestLinkExperience({
             media={landing.media}
             age={age}
             intentionLabel={intentionLabel}
+            pixelId={owner.facebook_pixel_id}
             onOpenPhoto={setLightboxUrl}
           />
           {!isOwner && conversationId ? (
@@ -412,12 +407,14 @@ function OwnerProfile({
   media,
   age,
   intentionLabel,
+  pixelId,
   onOpenPhoto,
 }: {
   owner: PrivateLinkLanding["owner"];
   media: PrivateLinkLanding["media"];
   age: number | null;
   intentionLabel?: string;
+  pixelId?: string | null;
   onOpenPhoto: (url: string) => void;
 }) {
   return (
@@ -480,9 +477,11 @@ function OwnerProfile({
                 className="aspect-square overflow-hidden rounded-[var(--radius-lg)] bg-background-secondary"
                 onClick={() => {
                   onOpenPhoto(item.url);
-                  trackFacebookEvent("ViewContent", {
-                    content_type: "profile_photo",
-                  });
+                  void trackFacebookEvent(
+                    "ViewContent",
+                    { content_type: "profile_photo" },
+                    pixelId,
+                  );
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
