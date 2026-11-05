@@ -18,7 +18,8 @@ export default async function AdminUsersPage() {
       <div>
         <h1 className="text-[22px] font-semibold text-text-primary">Users</h1>
         <p className="mt-1 text-[14px] text-text-secondary">
-          Search members and guests, grant admin access, or disable accounts.
+          Search members and guests, grant admin access, disable accounts, or
+          delete users individually or in bulk.
         </p>
       </div>
       <UsersManager initialUsers={users} currentUserId={userId} />

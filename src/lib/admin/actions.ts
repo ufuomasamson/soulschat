@@ -27,6 +27,28 @@ export async function adminSetUserDisabled(
   if (error) throw error;
 }
 
+export async function adminDeleteUsers(
+  supabase: AnyClient,
+  targetUserIds: string[],
+) {
+  const { data, error } = await supabase.rpc("admin_delete_users", {
+    target_user_ids: targetUserIds,
+  });
+  if (error) throw error;
+  return data as {
+    deleted_count: number;
+    deleted_ids: string[];
+    skipped_ids: string[];
+  };
+}
+
+export async function adminDeleteUser(
+  supabase: AnyClient,
+  targetUserId: string,
+) {
+  return adminDeleteUsers(supabase, [targetUserId]);
+}
+
 export async function adminUpdateReport(
   supabase: AnyClient,
   reportId: string,
